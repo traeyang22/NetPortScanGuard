@@ -33,7 +33,9 @@ class NetPortScanGuard:
                         select_idx = int(input("\n请输入要扫描的主机序号（输入0返回主菜单）："))
                         if select_idx == 0:
                             break
-                        target_ip = alive_hosts[select_idx - 1][0]
+                        else:
+                            target_ip = alive_hosts[select_idx - 1][0]
+                            print("你选择扫描的IP是：",target_ip)
                         break
                     except (ValueError, IndexError):
                         print("无效输入，请重新输入。")

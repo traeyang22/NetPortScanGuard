@@ -1,35 +1,24 @@
-from scapy.all import ARP, Ether, srp
-import socket
+from scanner import Scanner
+scanner = Scanner()
+hosts = scanner.survival_host()
 
-# 获取本机IP地址
-hostname = socket.gethostname()
-local_ip = socket.gethostbyname(hostname)
-print("本机IP地址为：", local_ip)
+print("\n=== 存活主机列表 ===")
+for idx, (ip, mac) in enumerate(hosts, 1):
+                    print(f"{idx}. IP: {ip}    MAC: {mac}")
+while True:
+                    try:
+                        target_ip_idx = int(input("\n请输入要扫描的主机IP（输入0返回主菜单）："))
+                        if target_ip_idx == 0:
+                            break
+                        else:
+                                target_ip = hosts[target_ip_idx - 1][0]
+                                print(target_ip)
+                                break
+                    except (ValueError, IndexError):
+                        print("无效输入，请重新输入。")
 
-# 拼接子网地址
-ip_parts = local_ip.split(".")
-if len(ip_parts) == 4:
-    target_ip = ".".join(ip_parts[:3]) + ".1/24"
-else:
-    target_ip = None
+ports = range(20, 1024)
 
-if not target_ip:
-    print("无法确定本地子网IP段")
-else:
-    print(f"正在扫描子网 {target_ip} ...")
-
-    # 构造ARP请求包
-    arp = ARP(pdst=target_ip)
-    ether = Ether(dst="ff:ff:ff:ff:ff:ff")
-    packet = ether/arp
-
-    # 发送请求并接收响应
-    result = srp(packet, timeout=2, verbose=0)[0]
-
-    hosts = []
-    for sent, received in result:
-        hosts.append((received.psrc, received.hwsrc))
-    
-    print("\n=== 存活主机列表 ===")
-    for ip, mac in hosts:
-        print(f"IP地址: {ip}    MAC地址: {mac}")
+for port in ports:
+    scanner.tcp_connect_scan(target_ip, port)
+    print(f"[+] {target_ip}:{port} 端口开放")
