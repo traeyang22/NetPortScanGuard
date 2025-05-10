@@ -1,6 +1,8 @@
+import sys
 from scanner import Scanner
 from detector import Detector
 from logger import Logger
+from tqdm import tqdm
 
 class NetPortScanGuard:
     def __init__(self):
@@ -35,40 +37,69 @@ class NetPortScanGuard:
                             break
                         else:
                             target_ip = alive_hosts[select_idx - 1][0]
-                            print("你选择扫描的IP是：",target_ip)
+                            print("你选择扫描的IP是：", target_ip)
                         break
                     except (ValueError, IndexError):
                         print("无效输入，请重新输入。")
 
-                ports = range(20, 1024)  # 默认扫描20-1023端口
+                ports = range(20, 1024)  # 默认扫描端口范围
 
                 while True:
                     print("\n=== 选择扫描方式 ===")
-                    print("1. 全连接扫描")
-                    print("2. 半开SYN扫描")
-                    print("3. FIN隐蔽扫描")
+                    print("1. 完全连接扫描")
+                    print("2. SYN扫描")
+                    print("3. SYN|ACK扫描")
+                    print("4. FIN扫描")
                     print("0. 返回主菜单")
                     choice_scanning_method = input("请输入选项：").strip()
 
                     if choice_scanning_method == "0":
                         break
 
-                    if choice_scanning_method not in ["1", "2", "3"]:
+                    if choice_scanning_method not in ["1", "2", "3", "4"]:
                         print("无效的选项，请重新输入。")
                         continue
 
-                    if choice_scanning_method == "1":
+                    scan_name = {
+                        "1": "完全连接",
+                        "2": "SYN",
+                        "3": "SYN|ACK",
+                        "4": "FIN"
+                    }[choice_scanning_method]
+
+                    print(f"正在对 {target_ip} 进行 {scan_name} 扫描，请稍候...\n")
+                    open_ports = []
+
+                    # 使用 tqdm 生成一个进度条
+                    with tqdm(total=len(ports), desc=f"{scan_name} 扫描进度", unit="端口", dynamic_ncols=True, file=sys.stdout) as pbar:
                         for port in ports:
-                            if self.scanner.tcp_connect_scan(target_ip, port):
-                                print(f"[+] {target_ip}:{port} 端口开放")
-                    elif choice_scanning_method == "2":
-                        for port in ports:
-                            if self.scanner.tcp_syn_scan(target_ip, port):
-                                print(f"[+] {target_ip}:{port} 端口开放")
-                    elif choice_scanning_method == "3":
-                        for port in ports:
-                            if self.scanner.tcp_fin_scan(target_ip, port):
-                                print(f"[+] {target_ip}:{port} 端口开放")
+                            try:
+                                # 每次扫描到一个开放端口，立即显示
+                                if choice_scanning_method == "1":
+                                    if self.scanner.tcp_connect_scan(target_ip, port):
+                                        open_ports.append(port)
+                                        tqdm.write(f"[+] {target_ip}:{port} 端口开放")  # 使用 tqdm.write 来避免与进度条冲突
+                                elif choice_scanning_method == "2":
+                                    if self.scanner.tcp_syn_scan(target_ip, port):
+                                        open_ports.append(port)
+                                        tqdm.write(f"[+] {target_ip}:{port} 端口开放")
+                                elif choice_scanning_method == "3":
+                                    if self.scanner.tcp_synack_scan(target_ip, port):
+                                        open_ports.append(port)
+                                        tqdm.write(f"[+] {target_ip}:{port} 端口开放")
+                                elif choice_scanning_method == "4":
+                                    if self.scanner.tcp_fin_scan(target_ip, port):
+                                        open_ports.append(port)
+                                        tqdm.write(f"[+] {target_ip}:{port} 端口开放")
+                            except Exception as e:
+                                continue  # 忽略端口扫描中可能出现的错误
+                            
+                            # 更新进度条
+                            pbar.update(1)
+
+                    # 扫描结束后检查开放端口
+                    if not open_ports:
+                        print("未发现开放端口")
 
             elif choice_function == "2":
                 self.detector.detect_scan()
