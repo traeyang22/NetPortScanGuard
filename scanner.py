@@ -78,7 +78,7 @@ class Scanner:
             return False
 
     def tcp_synack_scan(self, ip, port):
-        """SYN|ACK 探测（非标准，模拟服务回应）"""
+        """SYN|ACK 扫描"""
         try:
             synack_packet = IP(dst=ip) / TCP(dport=port, flags="SA")
             response = sr1(synack_packet, timeout=1, verbose=0)
