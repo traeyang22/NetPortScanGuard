@@ -19,37 +19,30 @@ class Scanner:
                 ip = get_if_addr(iface)
                 if ip.startswith(ip_prefix):
                     conf.iface = iface
-                    print(f"[+] 使用接口：{iface}，IP：{ip}")
                     return True
             except Exception:
                 continue
-        print("[-] 未找到匹配的接口，请检查网络。")
         return False
 
     def survival_host(self):
         """扫描当前子网存活主机，返回[(IP, MAC)]列表"""
         local_ip = self.get_local_ip()
-        print("本机IP地址为：", local_ip)
 
         if not self.set_interface_by_ip(local_ip):
             return []
 
         ip_parts = local_ip.split(".")
         if len(ip_parts) != 4:
-            print("[-] 无法确定本地子网IP段")
             return []
 
         target_ip = ".".join(ip_parts[:3]) + ".1/24"
-        print(f"[+] 扫描子网 {target_ip} 中的主机...")
-
         arp = ARP(pdst=target_ip)
         ether = Ether(dst="ff:ff:ff:ff:ff:ff")
         packet = ether / arp
 
         try:
             result = srp(packet, timeout=2, verbose=0)[0]
-        except Exception as e:
-            print("[-] ARP扫描失败：", e)
+        except Exception:
             return []
 
         hosts = [(recv.psrc, recv.hwsrc) for _, recv in result]
@@ -85,7 +78,6 @@ class Scanner:
             if response is None:
                 return False
             if response.haslayer(TCP):
-                # 一般服务不会回应 SA 包，因此 RST 表示端口开放
                 return response[TCP].flags == 0x14  # RST-ACK
             return False
         except Exception:
