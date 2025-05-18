@@ -9,11 +9,10 @@ import time
 
 
 class NetPortScanGuardGUI:
-
     def __init__(self, root):
         self.root = root
         self.root.title("NetPortScanGuard")
-        self.root.geometry("500x350")
+        self.root.geometry("500x400")
 
         self.scanner = Scanner()
         self.detector = Detector()
@@ -41,7 +40,7 @@ class NetPortScanGuardGUI:
         self.logger.write_info("启动端口扫描")
 
         self.clear_widgets()
-        self.create_label("\n\n\n\n\n\n\n正在扫描当前网段存活主机...\n请稍后", 12)
+        self.create_label("\n\n\n\n\n\n\n正在扫描当前网段存活主机...\n\n请稍后", 12)
         self.root.update()
 
         alive_hosts = self.scanner.survival_host()
@@ -157,17 +156,64 @@ class NetPortScanGuardGUI:
         self.create_button("返回主菜单", self.close_log_and_return)
 
     def start_detection(self):
+        self.clear_widgets()
         self.logger = Logger("detect")
         self.logger.write_info("启动扫描检测功能")
-        self.detector.detect_scan(self.logger)
-        messagebox.showinfo("完成", "扫描检测已完成。详情见日志。")
-        self.close_log_and_return()
+
+        self.detection_running = True
+        self.create_label("扫描检测界面", 14)
+
+        self.time_label = tk.Label(self.root, text=f"开始时间：{time.strftime('%Y-%m-%d %H:%M:%S')}")
+        self.time_label.pack(pady=2)
+
+        self.status_label = tk.Label(self.root, text="正在启动扫描检测...", font=("Arial", 10), fg="blue")
+        self.status_label.pack(pady=5)
+
+        self.output_box = tk.Text(self.root, width=60, height=10, state='disabled')
+        self.output_box.pack(pady=5, padx=10)
+
+        def gui_callback(msg):
+            self.output_box.configure(state='normal')
+            self.output_box.insert(tk.END, msg + '\n')
+            self.output_box.see(tk.END)
+            self.output_box.configure(state='disabled')
+
+        self.detector.detect_scan(self.logger, gui_callback)
+
+        button_frame = tk.Frame(self.root)
+        button_frame.pack(pady=10)
+
+        pause_btn = tk.Button(button_frame, text="暂停", width=12, command=self.pause_detection)
+        pause_btn.grid(row=0, column=0, padx=5)
+
+        resume_btn = tk.Button(button_frame, text="继续", width=12, command=self.resume_detection)
+        resume_btn.grid(row=0, column=1, padx=5)
+
+        back_btn = tk.Button(button_frame, text="返回主菜单", width=15, command=self.close_log_and_return)
+        back_btn.grid(row=0, column=2, padx=5)
+
+
+    def pause_detection(self):
+        if self.detector:
+            self.detector.pause()
+            self.status_label.config(text="检测已暂停", fg="red")
+            self.logger.write_info("检测已暂停")
+            messagebox.showinfo("状态", "检测已暂停")
+
+
+    def resume_detection(self):
+        if self.detector:
+            self.detector.resume(self.logger)
+            self.status_label.config(text="检测已继续", fg="green")
+            self.logger.write_info("检测已继续")
+            messagebox.showinfo("状态", "检测已继续")
+
 
     def view_logs(self):
         self.clear_widgets()
         log_dir = "log"
         files = sorted([f for f in os.listdir(log_dir) if f.endswith(".log")], reverse=True)[:50]
-    
+
         self.create_label("日志文件列表", 12)
         listbox = tk.Listbox(self.root, width=60)
         for f in files:
@@ -202,7 +248,7 @@ def center_window(root, width, height):
     x = (screen_width - width) // 2
     y = (screen_height - height) // 2
     root.geometry(f"{width}x{height}+{x}+{y}")
-    root.minsize(width, height)  # 最小尺寸，防止按钮丢失
+    root.minsize(width, height)
 
 
 def start_gui():
